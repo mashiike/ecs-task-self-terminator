@@ -206,7 +206,7 @@ func (app *App) mainLoop(ctx context.Context, cancel context.CancelFunc, m *Moni
 		metrics := m.Metrics()
 		app.logger.DebugContext(ctx, "monitor metrics", "metrics", metrics)
 		if metrics.TotalConnections == 0 {
-			app.logger.DebugContext(ctx, "no total connections")
+			app.logger.DebugContext(ctx, "no total connections", "startAt", app.startAt, "since", flextime.Since(app.startAt))
 			if flextime.Since(app.startAt) > app.cli.InitialWaitTime {
 				app.logger.InfoContext(ctx, "no total connections after initial wait time")
 				return "no total connections after initial wait time"

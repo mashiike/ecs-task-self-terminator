@@ -3,7 +3,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o ecs-task-self-terminator /app/*.go
+RUN go build -o ecs-task-self-terminator /app
 
 FROM alpine:3.18
 LABEL maintainer "mashiike <m.ikeda0901@gmail.com>"

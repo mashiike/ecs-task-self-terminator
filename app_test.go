@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -14,25 +16,28 @@ import (
 )
 
 func TestApp(t *testing.T) {
-	restore := flextime.Set(time.Date(2023, 11, 17, 7, 00, 00, 0, time.UTC))
+	t.Setenv("TZ", "UTC")
+	restore := flextime.Set(time.Date(2023, 11, 17, 7, 05, 00, 0, time.UTC))
 	defer restore()
 	tmpFile, err := os.CreateTemp("", "amazon-ssm-agent.log")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
+	tmpfileName := tmpFile.Name()
+
+	defer os.Remove(tmpfileName)
 	defer tmpFile.Close()
 	cli := CLI{
 		SSMAgentLogLocation: tmpFile.Name(),
 		LogFormat:           "text",
 		LogLevel:            slog.LevelDebug,
-		InitialWaitTime:     1 * time.Minute,
-		IdleTimeout:         5 * time.Minute,
+		InitialWaitTime:     30 * time.Minute,
+		IdleTimeout:         15 * time.Minute,
 		MaxLifeTime:         10 * time.Hour,
 	}
 	app, err := New(cli)
 	require.NoError(t, err)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	bs, err := os.ReadFile("testdata/amazon-ssm-agent.log")
 	require.NoError(t, err)
@@ -45,12 +50,21 @@ func TestApp(t *testing.T) {
 		err = app.Run(ctx)
 	}()
 	<-started
-	time.Sleep(500 * time.Microsecond)
+	//timestampRegex := regexp.MustCompile(`^(?P<Timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})`)
+	scanner := bufio.NewScanner(bytes.NewReader(bs))
+	for scanner.Scan() {
+		text := scanner.Text()
+		fmt.Fprintln(tmpFile, text)
+		time.Sleep(10 * time.Millisecond)
+	}
+	tmpFile.Sync()
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
 	require.True(t, app.IsActive())
-	tmpFile.Write(bs)
 	flextime.Set(time.Date(2023, 11, 17, 7, 45, 35, 0, time.UTC))
-	require.True(t, app.IsActive())
 	fmt.Fprintln(tmpFile, "2023-11-17 07:45:32 INFO [ssm-session-worker] [ecs-execute-command-02f7755870b50f125] Session worker closed")
+	tmpFile.Sync()
+	time.Sleep(1 * time.Second)
 	require.True(t, app.IsActive())
 	flextime.Set(time.Date(2023, 11, 17, 8, 30, 32, 0, time.UTC))
 	wg.Wait()
