@@ -18,6 +18,7 @@ type CLI struct {
 	SetDesiredCountToZero bool          `help:"Set desired count to zero when stopping task" env:"ECS_TST_SET_DESIRED_COUNT_TO_ZERO"`
 	StopTaskOnExit        bool          `help:"Stop task when stopping task" env:"ECS_TST_STOP_TASK"`
 	KeepAliveTask         bool          `help:"Keep alive task when finished command" env:"ECS_TST_KEEP_ALIVE_TASK"`
+	MetricsCheckInterval  time.Duration `help:"Metrics check interval" default:"1s" env:"ECS_TST_METRICS_CHECK_INTERVAL"`
 	Commands              []string      `arg:"" optional:"" help:"Command to run, if set run as wrapper"`
 }
 

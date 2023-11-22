@@ -129,6 +129,9 @@ func (app *App) Run(ctx context.Context) error {
 			app.logger.ErrorContext(ctx, "post process error", "error", err)
 		}
 	}()
+	if app.cli.MetricsCheckInterval == 0 {
+		app.cli.MetricsCheckInterval = 1 * time.Second
+	}
 	app.logger.DebugContext(ctx, "starting ecs-task-self-terminator", "version", Version)
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(ctx)
@@ -201,7 +204,7 @@ func (app *App) mainLoop(ctx context.Context, cancel context.CancelFunc, m *Moni
 			app.logger.DebugContext(ctx, "context done", "error", ctx.Err())
 			return ctx.Err().Error()
 		default:
-			time.Sleep(1 * time.Second)
+			time.Sleep(app.cli.MetricsCheckInterval)
 		}
 		metrics := m.Metrics()
 		app.logger.DebugContext(ctx, "monitor metrics", "metrics", metrics)
