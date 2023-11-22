@@ -6,8 +6,8 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
-    main: ./cmd/prepalert
-    binary: prepalert
+    main: .
+    binary: ecs-task-self-terminator
     ldflags:
       - -s -w
     goos:
