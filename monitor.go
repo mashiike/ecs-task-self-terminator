@@ -28,62 +28,6 @@ func NewMonitor(logFilePath string) *Monitor {
 	}
 }
 
-type TailReader struct {
-	mu         sync.Mutex
-	fileName   string
-	currentPos int64
-	ctx        context.Context
-	cancel     context.CancelFunc
-}
-
-func NewTailReader(ctx context.Context, fileName string) (*TailReader, error) {
-	cctx, cancel := context.WithCancel(ctx)
-	return &TailReader{
-		fileName: fileName,
-		ctx:      cctx,
-		cancel:   cancel,
-	}, nil
-}
-
-func (r *TailReader) Close() error {
-	r.cancel()
-	return nil
-}
-
-func (r *TailReader) Read(p []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for {
-		select {
-		case <-r.ctx.Done():
-			return 0, r.ctx.Err()
-		default:
-		}
-		stats, err := os.Stat(r.fileName)
-		if err != nil {
-			return 0, err
-		}
-		if stats.Size() <= r.currentPos {
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
-		file, err := os.Open(r.fileName)
-		if err != nil {
-			return 0, err
-		}
-		_, err = file.Seek(r.currentPos, io.SeekStart)
-		if err != nil {
-			return 0, err
-		}
-		n, err := file.Read(p)
-		if err != nil {
-			return 0, err
-		}
-		r.currentPos += int64(n)
-		return n, nil
-	}
-}
-
 func (m *Monitor) Run(ctx context.Context) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
@@ -108,11 +52,10 @@ func (m *Monitor) Run(ctx context.Context) error {
 		}
 		break
 	}
-	reader, err := NewTailReader(ctx, m.logFilePath)
+	reader, err := NewTailReaderWithContext(ctx, m.logFilePath)
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
 	return m.RunWithReader(ctx, reader)
 }
 
