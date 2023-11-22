@@ -40,6 +40,7 @@ type App struct {
 type ECSClient interface {
 	UpdateService(ctx context.Context, params *ecs.UpdateServiceInput, optFns ...func(*ecs.Options)) (*ecs.UpdateServiceOutput, error)
 	StopTask(ctx context.Context, params *ecs.StopTaskInput, optFns ...func(*ecs.Options)) (*ecs.StopTaskOutput, error)
+	DescribeTasks(ctx context.Context, params *ecs.DescribeTasksInput, optFns ...func(*ecs.Options)) (*ecs.DescribeTasksOutput, error)
 }
 
 func New(cli CLI) (*App, error) {
@@ -207,9 +208,20 @@ func (app *App) mainLoop(ctx context.Context, cancel context.CancelFunc, m *Moni
 			time.Sleep(app.cli.MetricsCheckInterval)
 		}
 		metrics := m.Metrics()
-		app.logger.DebugContext(ctx, "monitor metrics", "metrics", metrics)
+		sinceLastConnections := time.Duration(0)
+		if !metrics.LastTimestamp.IsZero() {
+			sinceLastConnections = flextime.Since(metrics.LastTimestamp)
+		}
+		metricsAttr := slog.Group("metrics",
+			slog.Int("total_connections", metrics.TotalConnections),
+			slog.Int("active_connections", metrics.ActiveConnections),
+			slog.Duration("since_connections", sinceLastConnections),
+			slog.Any("last_timestamp", metrics.LastTimestamp),
+		)
+		app.logger.DebugContext(ctx, "monitor metrics", metricsAttr)
+
 		if metrics.TotalConnections == 0 {
-			app.logger.DebugContext(ctx, "no total connections", "startAt", app.startAt, "since", flextime.Since(app.startAt))
+			app.logVervose(ctx, "no total connections", "start_at", app.startAt, "since_start_at", flextime.Since(app.startAt), metricsAttr)
 			if flextime.Since(app.startAt) > app.cli.InitialWaitTime {
 				app.logger.InfoContext(ctx, "no total connections after initial wait time")
 				return "no total connections after initial wait time"
@@ -217,14 +229,14 @@ func (app *App) mainLoop(ctx context.Context, cancel context.CancelFunc, m *Moni
 			continue
 		}
 		if metrics.ActiveConnections == 0 {
-			app.logger.DebugContext(ctx, "no active connections")
+			app.logVervose(ctx, "no active connections", metricsAttr)
 			if flextime.Since(metrics.LastTimestamp) > app.cli.IdleTimeout {
 				app.logger.InfoContext(ctx, "no active connections after idle timeout")
 				return "no active connections after idle timeout"
 			}
 			continue
 		}
-		app.logger.DebugContext(ctx, "has active connections")
+		app.logVervose(ctx, "has active connections", metricsAttr)
 	}
 }
 
@@ -248,7 +260,7 @@ func (app *App) stopTask(ctx context.Context) error {
 		app.logger.WarnContext(ctx, "ecs meta is not detected, can not stop task")
 		return nil
 	}
-	app.logger.DebugContext(ctx, "stopping task", "taskARN", app.ecsMeta.TaskARN)
+	app.logVervose(ctx, "stopping task", "taskARN", app.ecsMeta.TaskARN)
 	_, err := app.ecsClient.StopTask(ctx, &ecs.StopTaskInput{
 		Cluster: aws.String(app.ecsMeta.Cluster),
 		Task:    aws.String(app.ecsMeta.TaskARN),
@@ -261,11 +273,19 @@ func (app *App) stopTask(ctx context.Context) error {
 	return nil
 }
 
-func (app *App) setDesiredCountToZero(ctx context.Context) error {
-	if app.ecsMeta == nil {
-		return errors.New("ecs meta is not detected, can not set desired count to zero")
+func (app *App) logVervose(ctx context.Context, format string, args ...interface{}) {
+	if app.cli.Vervose {
+		app.logger.InfoContext(ctx, format, args...)
+	} else {
+		app.logger.DebugContext(ctx, format, args...)
 	}
-	app.logger.DebugContext(ctx, "setting desired count to zero", "serviceName", app.ecsMeta.ServiceName)
+}
+
+func (app *App) setDesiredCountToZero(ctx context.Context) error {
+	if app.ecsMeta == nil || app.ecsMeta.ServiceName == "" {
+		return errors.New("ecs service name is not detected, can not set desired count to zero")
+	}
+	app.logVervose(ctx, "setting desired count to zero", "serviceName", app.ecsMeta.ServiceName)
 	_, err := app.ecsClient.UpdateService(ctx, &ecs.UpdateServiceInput{
 		Cluster:      aws.String(app.ecsMeta.Cluster),
 		Service:      aws.String(app.ecsMeta.ServiceName),
@@ -325,7 +345,9 @@ func (app *App) detectECSMeta(ctx context.Context) error {
 		backoff.NewExponentialBackOff(),
 		3,
 	)
-	var ecsMeta ECSMeta
+	ecsMeta := ECSMeta{
+		ServiceName: app.cli.ECSServiceName,
+	}
 	operation := func() error {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 		if err != nil {
@@ -349,6 +371,24 @@ func (app *App) detectECSMeta(ctx context.Context) error {
 		return err
 	}
 	app.ecsMeta = &ecsMeta
+	if ecsMeta.ServiceName == "" {
+		app.logger.DebugContext(ctx, "ECS service name is not detected, try DescribeTasks")
+		resp, err := app.ecsClient.DescribeTasks(ctx, &ecs.DescribeTasksInput{
+			Cluster: aws.String(ecsMeta.Cluster),
+			Tasks:   []string{ecsMeta.TaskARN},
+		})
+		if err != nil {
+			return err
+		}
+		if len(resp.Tasks) != 0 {
+			group := aws.ToString(resp.Tasks[0].Group)
+			if strings.HasPrefix(group, "service:") {
+				ecsMeta.ServiceName = strings.TrimPrefix(group, "service:")
+			} else {
+				app.logger.WarnContext(ctx, "group is not service", "group", group)
+			}
+		}
+	}
 	app.logger.DebugContext(ctx, "detected ecs meta", "ecsMeta", ecsMeta)
 	return nil
 }

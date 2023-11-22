@@ -20,6 +20,8 @@ type CLI struct {
 	KeepAliveTask         bool          `help:"Keep alive task when finished command" env:"ECS_TST_KEEP_ALIVE_TASK"`
 	MetricsCheckInterval  time.Duration `help:"Metrics check interval" default:"1s" env:"ECS_TST_METRICS_CHECK_INTERVAL"`
 	Commands              []string      `arg:"" optional:"" help:"Command to run, if set run as wrapper"`
+	Vervose               bool          `help:"log output verbose output" env:"ECS_TST_VERBOSE"`
+	ECSServiceName        string        `help:"ECS Service Name" env:"ECS_TST_ECS_SERVICE_NAME"`
 }
 
 func (cli *CLI) Parse(args []string) error {
