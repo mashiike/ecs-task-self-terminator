@@ -260,11 +260,18 @@ func (app *App) stopTask(ctx context.Context) error {
 		app.logger.WarnContext(ctx, "ecs meta is not detected, can not stop task")
 		return nil
 	}
+	detail := app.StopReason()
+	var reason string
+	if detail != "" {
+		reason = fmt.Sprintf("stopped by ecs-task-self-terminator: %s", detail)
+	} else {
+		reason = "stopped by ecs-task-self-terminator"
+	}
 	app.logVervose(ctx, "stopping task", "taskARN", app.ecsMeta.TaskARN)
 	_, err := app.ecsClient.StopTask(ctx, &ecs.StopTaskInput{
 		Cluster: aws.String(app.ecsMeta.Cluster),
 		Task:    aws.String(app.ecsMeta.TaskARN),
-		Reason:  aws.String("stopped by ecs-task-self-terminator"),
+		Reason:  aws.String(reason),
 	})
 	if err != nil {
 		return err
