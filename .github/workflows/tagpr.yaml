@@ -29,9 +29,20 @@ jobs:
         with:
           version: latest
           args: release
-      - name: Release Image
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         if: ${{ steps.tagpr.outputs.tag != '' }}
-        run: |
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-          docker build --tag ghcr.io/mashiike/ecs-task-self-terminator:${{ steps.tagpr.outputs.tag }} .
-          docker push ghcr.io/mashiike/ecs-task-self-terminator:${{ steps.tagpr.outputs.tag }}
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        if: ${{ steps.tagpr.outputs.tag != '' }}
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ steps.tagpr.outputs.tag }}
