@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/Songmu/flextime v0.1.0
 	github.com/alecthomas/kong v0.8.1
-	github.com/aws/aws-sdk-go-v2 v1.23.0
+	github.com/aws/aws-sdk-go-v2 v1.23.1
 	github.com/aws/aws-sdk-go-v2/config v1.25.3
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.33.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
