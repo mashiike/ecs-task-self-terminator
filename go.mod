@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/Songmu/flextime v0.1.0
 	github.com/alecthomas/kong v0.8.1
-	github.com/aws/aws-sdk-go-v2 v1.23.0
+	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.25.3
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.33.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
@@ -26,7 +26,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.17.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.20.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.25.3 // indirect
-	github.com/aws/smithy-go v1.17.0 // indirect
+	github.com/aws/smithy-go v1.19.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
