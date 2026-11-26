@@ -38,6 +38,7 @@ This application is designed for simple operation containers. Here is a use case
        {
        "Effect": "Allow",
        "Action": [
+            "ecs:DescribeTasks",
             "ecs:StopTask",
             "ssmmessages:CreateControlChannel",
             "ssmmessages:CreateDataChannel",
