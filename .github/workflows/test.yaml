@@ -15,12 +15,13 @@ jobs:
     strategy:
       matrix:
         go:
-          - "1.21"
+          - "1.24"
+          - "stable"
     name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
         id: go
