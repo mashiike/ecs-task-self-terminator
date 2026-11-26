@@ -1,11 +1,11 @@
-FROM golang:1.21-alpine3.18 AS builder
+FROM golang:1.27-alpine3.24 AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN go build -o ecs-task-self-terminator /app
 
-FROM alpine:3.18
+FROM alpine:3.24
 LABEL maintainer "mashiike <m.ikeda0901@gmail.com>"
 
 RUN apk --no-cache add ca-certificates
